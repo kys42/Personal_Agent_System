@@ -1,0 +1,7 @@
+mcp[cli]
+pydantic
+# The mcp library might require additional dependencies for specific transports like streamable-http (e.g., uvicorn, fastapi).
+# If `pip install mcp` doesn't pull them, they might need to be added explicitly or by installing extras like `mcp[cli]` or `mcp[server]`
+# For example, you might need:
+uvicorn
+fastapi
