@@ -1,0 +1,25 @@
+{
+  "localTools": [
+    {
+      "name": "fs_read",
+      "function": "fs_read",
+      "description": "Reads content from a local file (mocked).",
+      "params": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string", "description": "파일 경로" }
+        },
+        "required": ["path"]
+      }
+    }
+  ],
+  "mcpServers": {
+    "notionApi": {
+      "command": "npx",
+      "args": ["-y", "@notionhq/notion-mcp-server"],
+      "env": {
+        "OPENAPI_MCP_HEADERS": "{\"Authorization\":\"Bearer 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\",\"Notion-Version\":\"2022-06-28\"}"
+      }
+    }
+  }
+}
