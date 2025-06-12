@@ -1,5 +1,25 @@
+from typing import TypedDict, List
+
 from mcp import ClientSession, StdioServerParameters, types
 from mcp.client.stdio import stdio_client
+
+from langgraph.graph import StateGraph, START, END
+from langgraph.prebuilt import ToolNode
+
+class MCPToolAdapter:
+    def __init__(self, mcp_tool, session):
+        self.name = mcp_tool.name
+        self.description = mcp_tool.description
+        self._schema = mcp_tool.inputSchema
+        self._session = session
+
+    async def invoke(self, args: dict) -> dict:
+        # call the MCP tool by name, passing the JSON args through
+        return await self._session.call_tool(self.name, arguments=args)
+
+class State(TypedDict):
+    # messages 키가 리스트 형태로 누적되도록 add_messages 리듀서를 지정
+    messages: List[HumanMessage | AIMessage]
 
 # Create server parameters for stdio connection
 server_params = StdioServerParameters(
@@ -38,29 +58,34 @@ async def run():
             tools = await session.list_tools()
             print(tools)
 
-            result = await session.call_tool("API-get-users")
-            print(result)
+            # ① list_tools() 전체 응답을 받고
+            tools_response = await session.list_tools()
+
+            # ② 실제 Tool 객체 리스트는 response.tools
+            mcp_tools = tools_response.tools  
+            
+            # ③ 각 Tool 객체는 .name, .description, .inputSchema 속성을 가집니다.
+            #    이를 어댑터로 래핑
+            adapters = [ MCPToolAdapter(t, session) for t in mcp_tools ]
+            # 1) 어댑터 리스트(adapters)가 이미 있다면…
+            wrapped_tools = []
+            for adapter in adapters:
+                # adapter.name, adapter.description, adapter.invoke(args) 를 사용
+                async def fn(**kwargs):
+                    return await adapter.invoke(kwargs)
+                # 함수 메타데이터 설정
+                fn.__name__ = adapter.name             # 함수 이름이 툴 이름으로 사용됨
+                fn.__doc__ = adapter.description       # 도큐먼트 문자열에 설명 저장
+                wrapped_tools.append(fn)
+            
+            # 2) langgraph ToolNode에 등록
+            tool_node = ToolNode(tools=wrapped_tools)
+            graph = StateGraph(State)
+            graph.add_node("tools", tool_node)
+
+            print("test")
 
 
-            # List available prompts
-            prompts = await session.list_prompts()
-
-            # Get a prompt
-            prompt = await session.get_prompt(
-                "example-prompt", arguments={"arg1": "value"}
-            )
-
-            # List available resources
-            resources = await session.list_resources()
-
-            # List available tools
-            tools = await session.list_tools()
-
-            # Read a resource
-            content, mime_type = await session.read_resource("file://some/path")
-
-            # Call a tool
-            result = await session.call_tool("notion_search", arguments={"query": "test"})
 
 
 if __name__ == "__main__":
